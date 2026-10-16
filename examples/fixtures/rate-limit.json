@@ -1,0 +1,30 @@
+{
+  "eventId": "example-rate-limit",
+  "timestamp": "2026-10-17T12:00:00.000Z",
+  "workflow": {
+    "id": "crm-sync",
+    "name": "CRM · Contact enrichment"
+  },
+  "execution": {
+    "id": "example-rate-limit",
+    "lastNodeExecuted": "Read CRM contact",
+    "mode": "trigger",
+    "error": {
+      "message": "HTTP 429 Too Many Requests. CRM quota exceeded; Retry-After: 5."
+    }
+  },
+  "recovery": {
+    "idempotent": true,
+    "retryAfterSeconds": 5
+  },
+  "request": {
+    "method": "GET",
+    "resource": "CRM contact lookup"
+  },
+  "response": {
+    "status": 429,
+    "headers": {
+      "Retry-After": "5"
+    }
+  }
+}

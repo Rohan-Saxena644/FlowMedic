@@ -1,0 +1,28 @@
+{
+  "eventId": "example-schema-mismatch",
+  "timestamp": "2026-10-17T12:00:00.000Z",
+  "workflow": {
+    "id": "crm-update",
+    "name": "CRM · Lead handoff"
+  },
+  "execution": {
+    "id": "example-schema-mismatch",
+    "lastNodeExecuted": "Update CRM lead",
+    "mode": "trigger",
+    "error": {
+      "message": "Payload schema mismatch: expected field email, received email_address."
+    }
+  },
+  "expectedFields": [
+    "email",
+    "first_name"
+  ],
+  "receivedPayload": {
+    "email_address": "lead@example.test",
+    "first_name": "Alex"
+  },
+  "recovery": {
+    "idempotent": false,
+    "retryAfterSeconds": 0
+  }
+}

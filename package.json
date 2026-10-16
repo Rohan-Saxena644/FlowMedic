@@ -1,0 +1,34 @@
+{
+  "name": "flowmedic",
+  "private": true,
+  "type": "module",
+  "version": "0.1.0",
+  "packageManager": "pnpm@10.18.3",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "setup": "node scripts/setup.mjs",
+    "format": "prettier --write .",
+    "test:integration": "dotenv -e .env -- vitest run tests/integration.test.ts",
+    "test:durability": "dotenv -e .env -- tsx packages/workflows/src/verify-durability.ts",
+    "demo:verify": "dotenv -e .env -- tsx scripts/verify-demo.ts",
+    "dev": "concurrently -n api,web,worker \"pnpm --filter @flowmedic/api dev\" \"pnpm --filter @flowmedic/web dev\" \"pnpm --filter @flowmedic/workflows dev\"",
+    "typecheck": "pnpm -r typecheck",
+    "test": "vitest run",
+    "build": "pnpm --filter @flowmedic/web build",
+    "db:migrate": "pnpm --filter @flowmedic/db migrate",
+    "seed": "pnpm --filter @flowmedic/api seed",
+    "infra:up": "docker compose -f infra/docker-compose.yml up -d",
+    "infra:cpu": "docker compose -f infra/docker-compose.yml -f infra/docker-compose.cpu.yml up -d"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "concurrently": "^9.2.0",
+    "dotenv-cli": "^10.0.0",
+    "prettier": "^3.9.10",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.0",
+    "vitest": "^3.2.0"
+  }
+}

@@ -1,0 +1,5 @@
+# Optional small community CPU build of Ollama, published by alpine-docker.
+# https://github.com/alpine-docker/ollama
+services:
+  ollama:
+    image: alpine/ollama@sha256:57d4a1a57372dd53ab1583a8ff5c8844bbc0f1dc60eeaf387b96498aa40db7ec

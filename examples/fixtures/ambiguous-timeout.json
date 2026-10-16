@@ -1,0 +1,26 @@
+{
+  "eventId": "example-ambiguous-timeout",
+  "timestamp": "2026-10-17T12:00:00.000Z",
+  "workflow": {
+    "id": "order-create",
+    "name": "Commerce · Order creation"
+  },
+  "execution": {
+    "id": "example-ambiguous-timeout",
+    "lastNodeExecuted": "Create customer order",
+    "mode": "trigger",
+    "error": {
+      "message": "ETIMEDOUT: order creation request timed out after request body was sent; remote outcome unknown."
+    }
+  },
+  "request": {
+    "method": "POST",
+    "resource": "order creation",
+    "bodySent": true,
+    "idempotencyKeyPresent": false
+  },
+  "recovery": {
+    "idempotent": false,
+    "retryAfterSeconds": 0
+  }
+}

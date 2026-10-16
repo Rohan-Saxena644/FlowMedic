@@ -1,0 +1,12 @@
+CREATE TABLE integrations (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), name text NOT NULL, secret_hash text NOT NULL UNIQUE, mode text NOT NULL DEFAULT 'live', created_at timestamptz NOT NULL DEFAULT now());
+CREATE TABLE workflow_definitions (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), integration_id uuid NOT NULL REFERENCES integrations, source_id text NOT NULL, name text NOT NULL);
+CREATE UNIQUE INDEX workflow_source ON workflow_definitions(integration_id,source_id);
+CREATE TABLE incidents (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), integration_id uuid NOT NULL REFERENCES integrations, workflow_id uuid NOT NULL REFERENCES workflow_definitions, source_identity text NOT NULL, workflow_name text NOT NULL, execution_id text, execution_url text, failed_node text NOT NULL, message text NOT NULL, status text NOT NULL DEFAULT 'RECEIVED', category text NOT NULL DEFAULT 'UNKNOWN', severity text NOT NULL DEFAULT 'medium', mode text NOT NULL, evidence jsonb NOT NULL, diagnosis jsonb, error text, scheduled boolean NOT NULL DEFAULT false, created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now());
+CREATE UNIQUE INDEX incident_delivery ON incidents(integration_id, source_identity);
+CREATE TABLE investigation_runs (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), incident_id uuid NOT NULL UNIQUE REFERENCES incidents, model text NOT NULL, latency_ms integer, created_at timestamptz DEFAULT now());
+CREATE TABLE investigation_evidence (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), incident_id uuid NOT NULL REFERENCES incidents, ref text NOT NULL, data jsonb NOT NULL);
+CREATE UNIQUE INDEX incident_evidence_ref ON investigation_evidence(incident_id, ref);
+CREATE TABLE recovery_proposals (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), incident_id uuid NOT NULL UNIQUE REFERENCES incidents, eligible boolean NOT NULL, reason text NOT NULL, delay_seconds integer NOT NULL, decision text CHECK (decision IN ('approve','reject','resolve')));
+CREATE TABLE recovery_attempts (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), incident_id uuid NOT NULL UNIQUE REFERENCES incidents, mode text NOT NULL, outcome text NOT NULL, created_at timestamptz DEFAULT now());
+CREATE TABLE audit_events (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), incident_id uuid NOT NULL REFERENCES incidents, stage text NOT NULL, detail text NOT NULL, created_at timestamptz NOT NULL DEFAULT now());
+CREATE UNIQUE INDEX incident_stage ON audit_events(incident_id,stage);

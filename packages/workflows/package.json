@@ -1,0 +1,17 @@
+{
+  "name": "@flowmedic/workflows",
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "dotenv -e ../../.env -- tsx src/worker.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@flowmedic/db": "workspace:*",
+    "@flowmedic/shared": "workspace:*",
+    "@flowmedic/ai": "workspace:*",
+    "@temporalio/worker": "^1.13.0",
+    "@temporalio/workflow": "^1.13.0",
+    "@temporalio/client": "^1.13.0"
+  }
+}

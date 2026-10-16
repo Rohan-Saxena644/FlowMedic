@@ -1,0 +1,15 @@
+{
+  "name": "@flowmedic/ai",
+  "version": "0.1.0",
+  "type": "module",
+  "exports": "./src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@flowmedic/shared": "workspace:*",
+    "@flowmedic/db": "workspace:*",
+    "@mastra/core": "1.78.0",
+    "zod": "^4.1.0"
+  }
+}
