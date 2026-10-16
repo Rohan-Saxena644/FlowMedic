@@ -14,10 +14,30 @@ export const category = z.enum([
 export const diagnosisSchema = z
   .object({
     category,
-    rootCause: z.string().min(1),
-    explanation: z.string().min(1),
-    evidenceRefs: z.array(z.string()).min(1),
-    recommendedFix: z.string(),
+    rootCause: z
+      .string()
+      .min(10)
+      .describe(
+        "A concise root-cause hypothesis grounded in observed evidence.",
+      ),
+    explanation: z
+      .string()
+      .min(30)
+      .describe(
+        "Explain how execution evidence supports the hypothesis. Distinguish observed facts from uncertainty.",
+      ),
+    evidenceRefs: z
+      .tuple([z.literal("execution")])
+      .rest(z.enum(["workflow", "failure", "related", "safety"]))
+      .describe(
+        "Use execution for payload/request evidence and safety for retry-policy evidence.",
+      ),
+    recommendedFix: z
+      .string()
+      .min(25)
+      .describe(
+        "An actionable fix in natural language, not an enum. Identify the relevant fields, backoff or verification steps supported by the evidence. Never claim changes were applied.",
+      ),
     retryRecommendation: z.enum([
       "AFTER_BACKOFF",
       "AFTER_CORRECTION",
@@ -30,6 +50,46 @@ export const diagnosisSchema = z
   })
   .strict();
 export type Diagnosis = z.infer<typeof diagnosisSchema>;
+export function investigationOutputSchema(
+  sourceCategory: z.infer<typeof category>,
+) {
+  return sourceCategory === "NETWORK_TIMEOUT"
+    ? diagnosisSchema.extend({
+        retryRecommendation: z.enum(["MANUAL_VERIFICATION", "DO_NOT_RETRY"]),
+        retryRisk: z.enum(["HIGH", "UNKNOWN"]),
+        missingInformation: z
+          .array(z.string())
+          .min(1)
+          .describe(
+            "State the unknown remote outcome or side effect that must be verified.",
+          ),
+      })
+    : diagnosisSchema;
+}
+export function validateDiagnosis(
+  value: unknown,
+  sourceCategory: z.infer<typeof category>,
+): Diagnosis {
+  const diagnosis = diagnosisSchema.parse(value);
+  if (!diagnosis.evidenceRefs.includes("execution"))
+    throw Error("Diagnosis must cite the execution evidence it inspected.");
+  if (sourceCategory === "NETWORK_TIMEOUT") {
+    if (
+      !["MANUAL_VERIFICATION", "DO_NOT_RETRY"].includes(
+        diagnosis.retryRecommendation,
+      ) ||
+      diagnosis.retryRisk === "LOW"
+    )
+      throw Error(
+        "Timeout diagnosis must preserve uncertainty and require manual verification.",
+      );
+    if (!diagnosis.missingInformation.length)
+      throw Error(
+        "Timeout diagnosis must state the unknown remote execution outcome.",
+      );
+  }
+  return diagnosis;
+}
 const errorSchema = z
   .object({ message: z.string().optional(), stack: z.string().optional() })
   .passthrough();

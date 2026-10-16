@@ -6,6 +6,7 @@ import {
   redact,
   diagnosisSchema,
   assertTransition,
+  validateDiagnosis,
 } from "../packages/shared/src/index";
 import { fixture } from "../apps/api/src/fixtures";
 describe("ingestion identity and validation", () => {
@@ -52,6 +53,71 @@ describe("ingestion identity and validation", () => {
         }),
       ),
     ).not.toMatch(/abc123|session=foo|sensitive|secretvalue/);
+  });
+});
+describe("diagnosis evidence and safety validation", () => {
+  const diagnosis = {
+    category: "RATE_LIMIT",
+    rootCause: "The CRM quota was exhausted.",
+    explanation:
+      "The observed 429 response and Retry-After header indicate a temporary resource quota limit.",
+    evidenceRefs: ["execution", "safety"],
+    recommendedFix:
+      "Wait for the observed backoff delay, then review the idempotent demo request before approving a retry.",
+    retryRecommendation: "AFTER_BACKOFF",
+    retryRisk: "LOW",
+    missingInformation: [],
+    confidence: 0.7,
+  };
+  it("accepts evidence-backed actionable model output", () =>
+    expect(validateDiagnosis(diagnosis, "RATE_LIMIT").recommendedFix).toContain(
+      "backoff",
+    ));
+  it("rejects enum labels masquerading as fixes", () =>
+    expect(() =>
+      validateDiagnosis(
+        { ...diagnosis, recommendedFix: "AFTER_BACKOFF" },
+        "RATE_LIMIT",
+      ),
+    ).toThrow());
+  it("rejects invented evidence and uninspected execution context", () => {
+    expect(() =>
+      validateDiagnosis(
+        { ...diagnosis, evidenceRefs: ["invented"] },
+        "RATE_LIMIT",
+      ),
+    ).toThrow();
+    expect(() =>
+      validateDiagnosis(
+        { ...diagnosis, evidenceRefs: ["failure"] },
+        "RATE_LIMIT",
+      ),
+    ).toThrow();
+  });
+  it("rejects a blind retry recommendation for a timeout", () =>
+    expect(() => validateDiagnosis(diagnosis, "NETWORK_TIMEOUT")).toThrow());
+  it("requires timeout uncertainty to be stated explicitly", () => {
+    expect(() =>
+      validateDiagnosis(
+        {
+          ...diagnosis,
+          retryRecommendation: "MANUAL_VERIFICATION",
+          retryRisk: "HIGH",
+        },
+        "NETWORK_TIMEOUT",
+      ),
+    ).toThrow();
+    expect(() =>
+      validateDiagnosis(
+        {
+          ...diagnosis,
+          retryRecommendation: "MANUAL_VERIFICATION",
+          retryRisk: "HIGH",
+          missingInformation: ["Whether the remote order was created."],
+        },
+        "NETWORK_TIMEOUT",
+      ),
+    ).not.toThrow();
   });
 });
 describe("independent recovery policy", () => {
