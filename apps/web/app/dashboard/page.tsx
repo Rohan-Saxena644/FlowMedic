@@ -832,6 +832,56 @@ function Detail({ id, back }: { id: string; back: () => void }) {
     </>
   );
 }
+function IntegrationConnection({
+  integration,
+}: {
+  integration: { id: string; name: string; mode: string };
+}) {
+  const check = useMutation({
+    mutationFn: () =>
+      api<{
+        configured: boolean;
+        readable: boolean;
+        code: string;
+        reason: string;
+        checkedAt: string;
+        liveRetryEnabled: boolean;
+      }>(`integrations/${integration.id}/check`, {}),
+  });
+  return (
+    <div>
+      <div className="integration-row">
+        <span className="avatar">
+          <Plug size={17} />
+        </span>
+        <div>
+          <strong>{integration.name}</strong>
+          <small>{integration.id}</small>
+        </div>
+        <span className="pill">{integration.mode}</span>
+        {integration.mode === "live" && (
+          <Button
+            variant="outline"
+            disabled={check.isPending}
+            onClick={() => check.mutate()}
+          >
+            {check.isPending ? "Checking…" : "Check connection"}
+          </Button>
+        )}
+      </div>
+      {check.data && (
+        <div className="connection-result" role="status">
+          <Badge value={check.data.readable ? "CONNECTED" : check.data.code} />
+          <p>{check.data.reason}</p>
+          <small>
+            Checked {time(check.data.checkedAt)} · Live retry disabled
+          </small>
+        </div>
+      )}
+      {check.error && <div className="error">{check.error.message}</div>}
+    </div>
+  );
+}
 function Integrations() {
   const [name, setName] = useState("");
   const [secret, setSecret] = useState<string>();
@@ -858,16 +908,7 @@ function Integrations() {
         </div>
         <div className="panel-body">
           {q.data?.map((i) => (
-            <div className="integration-row" key={i.id}>
-              <span className="avatar">
-                <Plug size={17} />
-              </span>
-              <div>
-                <strong>{i.name}</strong>
-                <small>{i.id}</small>
-              </div>
-              <span className="pill">{i.mode}</span>
-            </div>
+            <IntegrationConnection key={i.id} integration={i} />
           ))}
           {q.isLoading && <p>Loading integrations…</p>}
           {q.error && <div className="error">{q.error.message}</div>}
@@ -908,7 +949,7 @@ function Integrations() {
       </section>
       <section className="panel">
         <div className="panel-heading">
-          <h3>Connect in three steps</h3>
+          <h3>Connect n8n</h3>
         </div>
         <div className="panel-body setup">
           <h3>01 / Import the Error Workflow</h3>
@@ -919,10 +960,11 @@ function Integrations() {
           </p>
           <h3>02 / Configure the HTTP Request node</h3>
           <p>POST the entire Error Trigger JSON to:</p>
-          <code>http://host.docker.internal:4000/api/v1/events/n8n</code>
+          <code>http://localhost:4000/api/v1/events/n8n</code>
           <p>
-            For n8n outside Docker, use localhost:4000. Configure an HTTP Header
-            Auth credential:
+            Use this address when n8n runs on the same host. For a container,
+            configure a host address reachable from that container. Configure an
+            HTTP Header Auth credential:
           </p>
           <code>Authorization: Bearer YOUR_SECRET</code>
           <h3>03 / Trigger a real failure</h3>
@@ -930,6 +972,14 @@ function Integrations() {
             Run the source workflow using a production trigger. Failed manual
             runs do not invoke n8n’s Error Workflow. The new incident appears in
             your inbox.
+          </p>
+          <h3>04 / Verify optional context access</h3>
+          <p>
+            For richer execution evidence, configure the n8n base URL, a Public
+            API key with the minimum available permissions and this integration
+            ID in the server environment. Restart the API and worker, then use
+            Check connection. This verifies workflow-list access; individual
+            execution permissions may differ.
           </p>
           <div className="notice">
             <ShieldCheck size={18} />

@@ -23,7 +23,7 @@ import {
   isNull,
   sql,
 } from "@flowmedic/db";
-import { modelHealth } from "@flowmedic/ai";
+import { modelHealth, checkN8nConnection } from "@flowmedic/ai";
 import { config } from "../../../packages/shared/src/config.js";
 import { fixture } from "./fixtures.js";
 import { ingest, temporal } from "./ingest.js";
@@ -258,6 +258,28 @@ export function buildApp() {
         mode: integrations.mode,
       });
     return reply.code(201).send({ ...i, secret });
+  });
+  app.post("/api/v1/integrations/:id/check", async (req, reply) => {
+    z.object({}).strict().optional().parse(req.body);
+    const { id } = z.object({ id: z.uuid() }).parse(req.params);
+    const integration = await db.query.integrations.findFirst({
+      where: eq(integrations.id, id),
+    });
+    if (!integration)
+      return reply.code(404).send({
+        error: { code: "NOT_FOUND", message: "Integration not found" },
+      });
+    if (integration.mode === "demo")
+      return {
+        configured: false,
+        readable: false,
+        code: "DEMO_INTEGRATION",
+        reason:
+          "Demo events use stored fixtures; no live n8n connection is configured.",
+        checkedAt: new Date().toISOString(),
+        liveRetryEnabled: false,
+      };
+    return checkN8nConnection(id);
   });
   app.post("/api/v1/demo/scenarios/:scenario", async (req, reply) => {
     const { scenario } = z

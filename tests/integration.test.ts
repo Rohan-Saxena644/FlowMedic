@@ -80,6 +80,36 @@ describe.skipIf(process.env.RUN_INTEGRATION !== "1")(
         ).statusCode,
       ).toBe(400);
     });
+    it("secures integration diagnostics and reports missing configuration without leaking secrets", async () => {
+      expect(
+        (
+          await app.inject({
+            method: "POST",
+            url: `/api/v1/integrations/${integrationId}/check`,
+          })
+        ).statusCode,
+      ).toBe(401);
+      const result = await app.inject({
+        method: "POST",
+        url: `/api/v1/integrations/${integrationId}/check`,
+        headers: { authorization: `Bearer ${config.OPERATOR_TOKEN}` },
+      });
+      expect(result.statusCode).toBe(200);
+      expect(result.json()).toMatchObject({
+        configured: false,
+        readable: false,
+        code: "NOT_CONFIGURED",
+        liveRetryEnabled: false,
+      });
+      expect(result.body).not.toContain(secret);
+      const overridden = await app.inject({
+        method: "POST",
+        url: `/api/v1/integrations/${integrationId}/check`,
+        headers: { authorization: `Bearer ${config.OPERATOR_TOKEN}` },
+        payload: { baseUrl: "http://other.invalid" },
+      });
+      expect(overridden.statusCode).toBe(400);
+    });
     it("deduplicates concurrent delivery with a real database uniqueness constraint", async () => {
       const payload = fixture("rate-limit");
       const results = await Promise.all(

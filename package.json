@@ -13,6 +13,8 @@
     "test:integration": "dotenv -e .env -- vitest run tests/integration.test.ts",
     "test:durability": "dotenv -e .env -- tsx packages/workflows/src/verify-durability.ts",
     "demo:verify": "dotenv -e .env -- tsx scripts/verify-demo.ts",
+    "ai:evaluate": "dotenv -e .env -- tsx packages/ai/src/evaluate.ts",
+    "n8n:check": "dotenv -e .env -- tsx packages/ai/src/check-n8n.ts",
     "dev": "concurrently -n api,web,worker \"pnpm --filter @flowmedic/api dev\" \"pnpm --filter @flowmedic/web dev\" \"pnpm --filter @flowmedic/workflows dev\"",
     "typecheck": "pnpm -r typecheck",
     "test": "vitest run",

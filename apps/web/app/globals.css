@@ -814,11 +814,23 @@ pre {
   gap: 22px;
 }
 .integration-row {
+  flex-wrap: wrap;
   display: flex;
   align-items: center;
   gap: 10px;
   padding: 16px 0;
   border-bottom: 1px solid var(--line);
+}
+.connection-result {
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 11px;
+}
+.connection-result p {
+  margin: 9px 0;
+}
+.connection-result small {
+  font-size: 9px;
 }
 .integration-row strong {
   font-size: 12px;
