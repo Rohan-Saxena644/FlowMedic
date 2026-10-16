@@ -1,6 +1,7 @@
 "use client";
-import { useEffect, useState } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   QueryClient,
   QueryClientProvider,
@@ -105,18 +106,35 @@ export default function Page() {
   const [client] = useState(() => new QueryClient());
   return (
     <QueryClientProvider client={client}>
-      <Dashboard />
+      <Suspense fallback={<div className="empty">Loading workspace…</div>}>
+        <Dashboard />
+      </Suspense>
     </QueryClientProvider>
   );
 }
 function Dashboard() {
-  const [view, setView] = useState("overview");
-  const [selected, setSelected] = useState<string>();
+  const router = useRouter();
+  const params = useSearchParams();
+  const view = nav.some((item) => item.id === params.get("view"))
+    ? params.get("view")!
+    : "overview";
+  const incidentParam = params.get("incident");
+  const selected =
+    incidentParam &&
+    /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(
+      incidentParam,
+    )
+      ? incidentParam
+      : undefined;
+  const navigate = (nextView: string, id?: string) => {
+    const query = new URLSearchParams({ view: nextView });
+    if (id) query.set("incident", id);
+    router.push(`/dashboard?${query.toString()}`, { scroll: false });
+  };
+  const setView = (nextView: string) => navigate(nextView);
+  const setSelected = (id: string | undefined) => navigate(view, id);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("ALL");
-  useEffect(() => {
-    setView(new URLSearchParams(location.search).get("view") ?? "overview");
-  }, []);
   const list = useQuery({
     queryKey: ["incidents"],
     queryFn: () => api<Incident[]>("incidents"),
@@ -166,7 +184,6 @@ function Dashboard() {
               key={n.id}
               onClick={() => {
                 setView(n.id);
-                setSelected(undefined);
               }}
               className={view === n.id ? "active" : ""}
             >
@@ -799,7 +816,9 @@ function Detail({ id, back }: { id: string; back: () => void }) {
                     <Check size={11} />
                   </span>
                   <strong>
-                    {pretty(t.stage.replace("tool:", "Evidence / "))}
+                    {t.stage.startsWith("ai-validation:")
+                      ? "Model response rejected"
+                      : pretty(t.stage.replace("tool:", "Evidence / "))}
                   </strong>
                   <p>{t.detail}</p>
                   <small>{time(t.createdAt)}</small>
