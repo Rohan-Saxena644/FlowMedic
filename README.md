@@ -66,9 +66,11 @@ Import [Error Workflow](examples/n8n/error-reporter.json), attach an HTTP Header
 
 ## Open-source AI
 
-The investigator uses Mastra `Agent.generate` with a strict Zod schema. Gemma is open-weight and runs locally through Ollama. Because Gemma 3 does not guarantee native tool calling, the orchestrator executes five typed read-only tools before generation. These query stored execution, workflow, failure, related incident and safety evidence; the model reasons over their actual results. No successful AI diagnosis is produced without inference. Model latency and evidence tool traces are persisted. Confidence is an uncalibrated model judgment.
+The investigator uses Mastra `Agent.generate` with a strict Zod schema and Ollama's native JSON-schema-constrained output. Gemma is open-weight and runs locally through Ollama. Because Gemma 3 does not guarantee native tool calling, the orchestrator executes five typed read-only tools before generation. These query stored execution, workflow, failure, related incident and safety evidence; the model reasons over their actual results. Retries reuse persisted evidence snapshots. No successful AI diagnosis is produced without inference. Model latency and evidence tool traces are persisted. Confidence is an uncalibrated model judgment. Native structured output enforces format, not factual accuracy; the 1B model verified the pipeline but produced uneven explanations, including unsupported causal wording. Review diagnoses against evidence; the default 4B model still needs a separate accuracy evaluation.
 
 See [Mastra structured output](https://mastra.ai/docs/agents/structured-output), [Mastra tools](https://mastra.ai/docs/agents/tools), [Temporal TypeScript](https://docs.temporal.io/develop/typescript), and [n8n error handling](https://docs.n8n.io/flow-logic/error-handling/). Package APIs are checked against installed type definitions.
+
+Ollama's [structured output documentation](https://docs.ollama.com/capabilities/structured-outputs) describes native schema enforcement through the OpenAI-compatible API. A compact schema is also supplied in the prompt to explain field meanings to the model. Timeout output schemas constrain retry recommendations and preserve uncertainty; backend eligibility remains independent of model output.
 
 ## Security and limitations
 
