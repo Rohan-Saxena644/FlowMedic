@@ -95,9 +95,13 @@ export async function ingest(
     "n8n failure validated, redacted and persisted.",
   );
   // Persist first: a periodic dispatcher repairs a crash or Temporal outage between commit and start.
-  const scheduled=await Promise.race([
-    schedule(result.incident.id).then(()=>true).catch(()=>false),
-    new Promise<false>(resolve=>setTimeout(()=>resolve(false),500).unref()),
+  const scheduled = await Promise.race([
+    schedule(result.incident.id)
+      .then(() => true)
+      .catch(() => false),
+    new Promise<false>((resolve) =>
+      setTimeout(() => resolve(false), 500).unref(),
+    ),
   ]);
-  return { ...result, scheduling: scheduled?"scheduled":"pending" };
+  return { ...result, scheduling: scheduled ? "scheduled" : "pending" };
 }

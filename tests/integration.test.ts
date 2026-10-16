@@ -104,7 +104,11 @@ describe.skipIf(process.env.RUN_INTEGRATION !== "1")(
       });
       expect(row).toBeDefined();
       // Temporal scheduling may still be pending after the bounded ingestion response.
-      expect(results.every(r=>['scheduled','pending'].includes(r.json().scheduling))).toBe(true);
+      expect(
+        results.every((r) =>
+          ["scheduled", "pending"].includes(r.json().scheduling),
+        ),
+      ).toBe(true);
     });
     it("allows one concurrent decision and one simulated recovery attempt", async () => {
       const payload = fixture("rate-limit");

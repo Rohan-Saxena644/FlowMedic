@@ -3,13 +3,22 @@ import { config } from "../packages/shared/src/config.js";
 import { diagnosisSchema } from "../packages/shared/src/index.js";
 const base = `http://localhost:${config.PORT}/api/v1`;
 async function api(path: string, post = false) {
-  const r = await fetch(`${base}/${path}`, {
-    method: post ? "POST" : "GET",
-    headers: { Authorization: `Bearer ${config.OPERATOR_TOKEN}` },
-  });
-  const body = await r.json();
-  assert.ok(r.ok, `${path}: ${r.status} ${JSON.stringify(body)}`);
-  return body;
+  for (let attempt = 0; attempt < 6; attempt++) {
+    try {
+      const r = await fetch(`${base}/${path}`, {
+        method: post ? "POST" : "GET",
+        headers: { Authorization: `Bearer ${config.OPERATOR_TOKEN}` },
+        signal: AbortSignal.timeout(15000),
+      });
+      const body = await r.json();
+      assert.ok(r.ok, `${path}: ${r.status} ${JSON.stringify(body)}`);
+      return body;
+    } catch (error) {
+      if (post || attempt === 5) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
+  }
+  throw Error("API read retries exhausted");
 }
 async function waitFor(id: string, status: string) {
   const deadline = Date.now() + 600000;
