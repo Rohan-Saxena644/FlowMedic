@@ -8,8 +8,10 @@ import {
   and,
   audit,
   sql,
+  isNull,
+  audits,
 } from "@flowmedic/db";
-import { classify, retryPolicy } from "@flowmedic/shared";
+import { classify, retryPolicy, type Diagnosis } from "@flowmedic/shared";
 import { config } from "../../shared/src/config.js";
 import { investigate } from "@flowmedic/ai";
 async function load(id: string) {
@@ -42,25 +44,37 @@ export async function runAIAgentInvestigation(id: string) {
   const i = await load(id);
   if (i.diagnosis) return;
   const result = await investigate(id);
-  await db.transaction(async (tx) => {
-    await tx
+  await persistInvestigation(id, { ...result, model: config.MODEL_ID });
+}
+export async function persistInvestigation(
+  id: string,
+  result: { diagnosis: Diagnosis; latencyMs: number; model: string },
+) {
+  return db.transaction(async (tx) => {
+    const claimed = await tx
       .update(incidents)
       .set({ diagnosis: result.diagnosis })
-      .where(eq(incidents.id, id));
-    await tx
-      .insert(runs)
-      .values({
-        incidentId: id,
-        model: config.MODEL_ID,
-        latencyMs: result.latencyMs,
-      })
-      .onConflictDoNothing();
+      .where(
+        and(
+          eq(incidents.id, id),
+          eq(incidents.status, "INVESTIGATING"),
+          isNull(incidents.diagnosis),
+        ),
+      )
+      .returning({ id: incidents.id });
+    if (!claimed.length) return false;
+    await tx.insert(runs).values({
+      incidentId: id,
+      model: result.model,
+      latencyMs: result.latencyMs,
+    });
+    await tx.insert(audits).values({
+      incidentId: id,
+      stage: "diagnosis",
+      detail: `Mastra completed model inference using ${result.model}; structured result validated (${result.latencyMs}ms).`,
+    });
+    return true;
   });
-  await audit(
-    id,
-    "diagnosis",
-    `Mastra completed model inference using ${config.MODEL_ID}; structured result validated (${result.latencyMs}ms).`,
-  );
 }
 export async function prepareRecoveryProposal(id: string) {
   const i = await load(id);
@@ -92,33 +106,37 @@ export async function executeApprovedRecovery(id: string) {
   });
   if (
     p?.decision !== "approve" ||
+    !p.eligible ||
     !retryPolicy(i.message, i.evidence, i.mode).eligible
   )
     throw Error("Recovery is not authorized or safe");
   // Atomic at-most-once claim. Never retry an uncertain external side effect.
-  await db.transaction(async (tx) => {
+  return db.transaction(async (tx) => {
     const claim = await tx
+      .update(incidents)
+      .set({ status: "RECOVERED", updatedAt: new Date() })
+      .where(
+        and(eq(incidents.id, id), eq(incidents.status, "RECOVERY_RUNNING")),
+      )
+      .returning({ id: incidents.id });
+    if (!claim.length) return false;
+    await tx
       .insert(attempts)
       .values({
         incidentId: id,
         mode: "demo",
         outcome: "SIMULATED_RECOVERY_SUCCEEDED",
-      })
-      .onConflictDoNothing()
-      .returning();
-    if (!claim.length) return;
+      });
     await tx
-      .update(incidents)
-      .set({ status: "RECOVERED", updatedAt: new Date() })
-      .where(
-        and(eq(incidents.id, id), eq(incidents.status, "RECOVERY_RUNNING")),
-      );
+      .insert(audits)
+      .values({
+        incidentId: id,
+        stage: "recovery",
+        detail:
+          "Demo adapter: the simulated rate limit cleared after backoff. No live n8n execution was retried.",
+      });
+    return true;
   });
-  await audit(
-    id,
-    "recovery",
-    "Demo adapter: the simulated rate limit cleared after backoff. No live n8n execution was retried.",
-  );
 }
 export async function recordDecision(id: string, decision: string) {
   await db

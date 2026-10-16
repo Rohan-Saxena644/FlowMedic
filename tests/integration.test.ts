@@ -1,6 +1,7 @@
 import { describe, it, expect, afterAll, beforeAll } from "vitest";
 import { randomBytes } from "node:crypto";
 import { fixture } from "../apps/api/src/fixtures";
+import { diagnosisSchema } from "../packages/shared/src/index";
 describe.skipIf(process.env.RUN_INTEGRATION !== "1")(
   "PostgreSQL and Temporal integration",
   () => {
@@ -187,6 +188,125 @@ describe.skipIf(process.env.RUN_INTEGRATION !== "1")(
           .where(store.eq(store.attempts.incidentId, id));
         expect(attempts).toHaveLength(1);
       }
+    });
+    it("keeps diagnosis, model latency and audit consistent under overlapping activity completions", async () => {
+      const payload = fixture("rate-limit");
+      payload.workflow.name = "TEST ONLY · concurrent diagnosis persistence";
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/v1/events/n8n",
+        headers: { authorization: `Bearer ${secret}` },
+        payload,
+      });
+      const id = response.json().id;
+      ids.push(id);
+      await store.db
+        .update(store.incidents)
+        .set({ status: "INVESTIGATING" })
+        .where(store.eq(store.incidents.id, id));
+      const { persistInvestigation } =
+        await import("../packages/workflows/src/activities");
+      const candidates = Array.from({ length: 8 }, (_, index) => ({
+        model: `test-model-${index}`,
+        latencyMs: 100 + index,
+        diagnosis: diagnosisSchema.parse({
+          category: "RATE_LIMIT",
+          rootCause: `TEST ONLY hypothesis ${index}.`,
+          explanation:
+            "TEST ONLY: this fixture verifies transactional concurrency, not model inference.",
+          evidenceRefs: ["execution"],
+          recommendedFix:
+            "TEST ONLY: no recovery or model call is performed by this database test.",
+          retryRecommendation: "AFTER_BACKOFF",
+          retryRisk: "LOW",
+          missingInformation: [],
+          confidence: 0,
+        }),
+      }));
+      const outcomes = await Promise.all(
+        candidates.map((candidate) => persistInvestigation(id, candidate)),
+      );
+      expect(outcomes.filter(Boolean)).toHaveLength(1);
+      const winner = candidates[outcomes.findIndex(Boolean)];
+      const incident = await store.db.query.incidents.findFirst({
+        where: store.eq(store.incidents.id, id),
+      });
+      const run = await store.db.query.runs.findFirst({
+        where: store.eq(store.runs.incidentId, id),
+      });
+      const timeline = await store.db
+        .select()
+        .from(store.audits)
+        .where(
+          store.and(
+            store.eq(store.audits.incidentId, id),
+            store.eq(store.audits.stage, "diagnosis"),
+          ),
+        );
+      expect(incident?.diagnosis).toEqual(winner.diagnosis);
+      expect(run).toMatchObject({
+        model: winner.model,
+        latencyMs: winner.latencyMs,
+      });
+      expect(timeline).toHaveLength(1);
+      expect(timeline[0].detail).toContain(winner.model);
+      await store.db
+        .update(store.incidents)
+        .set({ status: "FAILED" })
+        .where(store.eq(store.incidents.id, id));
+      expect(await persistInvestigation(id, candidates[0])).toBe(false);
+    });
+    it("does not record a successful recovery when a late activity reaches a failed incident", async () => {
+      const payload = fixture("rate-limit");
+      payload.workflow.name = "TEST ONLY · stale recovery completion";
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/v1/events/n8n",
+        headers: { authorization: `Bearer ${secret}` },
+        payload,
+      });
+      const id = response.json().id;
+      ids.push(id);
+      await store.db
+        .update(store.incidents)
+        .set({ status: "FAILED", mode: "demo" })
+        .where(store.eq(store.incidents.id, id));
+      await store.db
+        .insert(store.proposals)
+        .values({
+          incidentId: id,
+          eligible: true,
+          decision: "approve",
+          delaySeconds: 0,
+          reason: "TEST ONLY: stale activity guard",
+        });
+      const { executeApprovedRecovery } =
+        await import("../packages/workflows/src/activities");
+      expect(await executeApprovedRecovery(id)).toBe(false);
+      expect(
+        await store.db
+          .select()
+          .from(store.attempts)
+          .where(store.eq(store.attempts.incidentId, id)),
+      ).toHaveLength(0);
+      expect(
+        await store.db
+          .select()
+          .from(store.audits)
+          .where(
+            store.and(
+              store.eq(store.audits.incidentId, id),
+              store.eq(store.audits.stage, "recovery"),
+            ),
+          ),
+      ).toHaveLength(0);
+      expect(
+        (
+          await store.db.query.incidents.findFirst({
+            where: store.eq(store.incidents.id, id),
+          })
+        )?.status,
+      ).toBe("FAILED");
     });
     it("never leaks integration hashes or secrets on list routes", async () => {
       const result = await app.inject({
