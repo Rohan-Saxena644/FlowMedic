@@ -29,7 +29,7 @@ import {
 } from "lucide-react";
 import { ResponsiveContainer, BarChart, Bar, XAxis, Tooltip } from "recharts";
 import { Button } from "../../components/ui/button";
-type Incident = {
+type IncidentSummary = {
   id: string;
   workflowName: string;
   failedNode: string;
@@ -39,6 +39,8 @@ type Incident = {
   mode: string;
   severity: string;
   createdAt: string;
+};
+type Incident = IncidentSummary & {
   error?: string;
   evidence: unknown;
   diagnosis?: {
@@ -63,6 +65,33 @@ type Timeline = {
   detail: string;
   createdAt: string;
 };
+type IncidentPage = {
+  items: IncidentSummary[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+};
+const statuses = [
+  "RECEIVED",
+  "INVESTIGATING",
+  "AWAITING_APPROVAL",
+  "RECOVERY_RUNNING",
+  "RECOVERED",
+  "REJECTED",
+  "MANUAL_ACTION_REQUIRED",
+  "FAILED",
+];
+const categories = [
+  "AUTHENTICATION_FAILURE",
+  "RATE_LIMIT",
+  "NETWORK_TIMEOUT",
+  "PAYLOAD_SCHEMA_MISMATCH",
+  "MISSING_REQUIRED_FIELD",
+  "INVALID_CREDENTIALS",
+  "UPSTREAM_SERVICE_ERROR",
+  "UNKNOWN",
+];
 async function api<T>(path: string, body?: unknown): Promise<T> {
   const r = await fetch(
     `/api/${path}`,
@@ -127,17 +156,42 @@ function Dashboard() {
       ? incidentParam
       : undefined;
   const navigate = (nextView: string, id?: string) => {
-    const query = new URLSearchParams({ view: nextView });
+    const query =
+      nextView === view
+        ? new URLSearchParams(params.toString())
+        : new URLSearchParams();
+    query.set("view", nextView);
+    query.delete("incident");
     if (id) query.set("incident", id);
     router.push(`/dashboard?${query.toString()}`, { scroll: false });
   };
   const setView = (nextView: string) => navigate(nextView);
   const setSelected = (id: string | undefined) => navigate(view, id);
-  const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState("ALL");
+  const search = params.get("q") ?? "";
+  const updateFilters = (changes: Record<string, string>) => {
+    const query = new URLSearchParams(params.toString());
+    query.set("view", "incidents");
+    query.delete("incident");
+    query.delete("page");
+    for (const [key, value] of Object.entries(changes)) {
+      if (value) query.set(key, value);
+      else query.delete(key);
+    }
+    router.push(`/dashboard?${query.toString()}`, { scroll: false });
+  };
+  const listQuery = new URLSearchParams({
+    pageSize: view === "overview" ? "8" : "25",
+  });
+  if (view === "incidents") {
+    for (const key of ["q", "status", "category", "mode", "page"]) {
+      const value = params.get(key);
+      if (value) listQuery.set(key, value);
+    }
+  }
   const list = useQuery({
-    queryKey: ["incidents"],
-    queryFn: () => api<Incident[]>("incidents"),
+    queryKey: ["incidents", listQuery.toString()],
+    queryFn: () => api<IncidentPage>(`incidents?${listQuery}`),
+    enabled: ["overview", "incidents"].includes(view) && !selected,
     refetchInterval: 3000,
   });
   const health = useQuery({
@@ -148,7 +202,7 @@ function Dashboard() {
     },
     refetchInterval: 15000,
   });
-  const rows = list.data ?? [];
+  const rows = list.data?.items ?? [];
   const metrics = useQuery({
     queryKey: ["metrics"],
     queryFn: () =>
@@ -158,6 +212,7 @@ function Dashboard() {
         awaitingApproval: number;
         recovered: number;
         averageLatencyMs: number | null;
+        categories: { category: string; count: number }[];
       }>("metrics"),
     refetchInterval: 3000,
   });
@@ -190,7 +245,7 @@ function Dashboard() {
               <n.icon size={18} />
               {n.label}
               {n.id === "incidents" && (
-                <span className="count">{rows.length}</span>
+                <span className="count">{metrics.data?.total ?? "—"}</span>
               )}
               {n.id === "demo" && <span className="tiny">3</span>}
             </button>
@@ -261,7 +316,7 @@ function Dashboard() {
                   </Button>
                 )}
               </div>
-              {list.error && (
+              {["overview", "incidents"].includes(view) && list.error && (
                 <div className="error">
                   <AlertTriangle size={18} />
                   {list.error.message}
@@ -302,7 +357,7 @@ function Dashboard() {
                             <Activity size={16} />
                           </span>
                         </div>
-                        <strong>{list.isLoading ? "—" : num}</strong>
+                        <strong>{metrics.isLoading ? "—" : num}</strong>
                         <small>{description}</small>
                       </article>
                     ))}
@@ -312,9 +367,7 @@ function Dashboard() {
                       <div className="panel-heading">
                         <div>
                           <h3>Failure signals</h3>
-                          <p>
-                            Categories across the latest 200 persisted incidents
-                          </p>
+                          <p>Categories across all persisted incidents</p>
                         </div>
                         <span className="pill">
                           {metrics.data?.averageLatencyMs != null
@@ -322,16 +375,29 @@ function Dashboard() {
                             : "NO LATENCY DATA"}
                         </span>
                       </div>
-                      {rows.length ? (
+                      {metrics.error ? (
+                        <div className="error">
+                          {metrics.error.message}
+                          <Button
+                            variant="outline"
+                            onClick={() => metrics.refetch()}
+                          >
+                            Retry metrics
+                          </Button>
+                        </div>
+                      ) : metrics.isLoading ? (
+                        <div className="empty compact">
+                          Loading failure signals…
+                        </div>
+                      ) : metrics.data?.categories.length ? (
                         <ResponsiveContainer width="100%" height={180}>
                           <BarChart
-                            data={Object.entries(
-                              rows.reduce<Record<string, number>>((a, i) => {
-                                a[pretty(i.category)] =
-                                  (a[pretty(i.category)] ?? 0) + 1;
-                                return a;
-                              }, {}),
-                            ).map(([name, count]) => ({ name, count }))}
+                            data={metrics.data.categories.map(
+                              ({ category, count }) => ({
+                                name: pretty(category),
+                                count,
+                              }),
+                            )}
                           >
                             <XAxis
                               dataKey="name"
@@ -388,55 +454,146 @@ function Dashboard() {
                         {view === "overview"
                           ? "Recent incidents"
                           : "Incident inbox"}{" "}
-                        <span className="count">{rows.length}</span>
+                        <span className="count">{list.data?.total ?? "—"}</span>
                       </h3>
                       <p>From failure to a clear next step</p>
                     </div>
-                    <div className="table-controls">
-                      <label>
-                        <Search size={15} />
-                        <input
-                          aria-label="Search incidents"
-                          placeholder="Search workflows…"
-                          value={search}
-                          onChange={(e) => setSearch(e.target.value)}
-                        />
-                      </label>
-                      <select
-                        aria-label="Filter status"
-                        value={filter}
-                        onChange={(e) => setFilter(e.target.value)}
-                      >
-                        <option value="ALL">All statuses</option>
-                        {[
-                          "RECEIVED",
-                          "INVESTIGATING",
-                          "AWAITING_APPROVAL",
-                          "RECOVERED",
-                          "REJECTED",
-                          "MANUAL_ACTION_REQUIRED",
-                          "FAILED",
-                        ].map((s) => (
-                          <option key={s}>{s}</option>
-                        ))}
-                      </select>
-                    </div>
+                    {view === "incidents" && (
+                      <div className="table-controls">
+                        <form
+                          id="incident-search"
+                          key={search}
+                          className="incident-search"
+                          onSubmit={(event) => {
+                            event.preventDefault();
+                            updateFilters({
+                              q: String(
+                                new FormData(event.currentTarget).get("q") ??
+                                  "",
+                              ).trim(),
+                            });
+                          }}
+                        >
+                          <label>
+                            <Search size={15} />
+                            <input
+                              aria-label="Search incidents"
+                              placeholder="Workflow, node, error or ID…"
+                              name="q"
+                              maxLength={200}
+                              defaultValue={search}
+                            />
+                          </label>
+                          <Button type="submit" variant="outline">
+                            Search
+                          </Button>
+                        </form>
+                        <select
+                          aria-label="Filter status"
+                          value={params.get("status") ?? ""}
+                          onChange={(e) =>
+                            updateFilters({ status: e.target.value })
+                          }
+                        >
+                          <option value="">All statuses</option>
+                          {statuses.map((s) => (
+                            <option key={s} value={s}>
+                              {pretty(s)}
+                            </option>
+                          ))}
+                        </select>
+                        <select
+                          aria-label="Filter category"
+                          value={params.get("category") ?? ""}
+                          onChange={(e) =>
+                            updateFilters({ category: e.target.value })
+                          }
+                        >
+                          <option value="">All categories</option>
+                          {categories.map((c) => (
+                            <option key={c} value={c}>
+                              {pretty(c)}
+                            </option>
+                          ))}
+                        </select>
+                        <select
+                          aria-label="Filter source"
+                          value={params.get("mode") ?? ""}
+                          onChange={(e) =>
+                            updateFilters({ mode: e.target.value })
+                          }
+                        >
+                          <option value="">All sources</option>
+                          <option value="demo">Demo events</option>
+                          <option value="live">Live n8n events</option>
+                        </select>
+                        <Button
+                          variant="outline"
+                          type="reset"
+                          form="incident-search"
+                          onClick={() =>
+                            updateFilters({
+                              q: "",
+                              status: "",
+                              category: "",
+                              mode: "",
+                            })
+                          }
+                        >
+                          Clear filters
+                        </Button>
+                      </div>
+                    )}
                   </div>
                   {list.isLoading ? (
                     <div className="empty">Loading your incident inbox…</div>
-                  ) : (
+                  ) : list.error ? null : (
                     <IncidentTable
-                      rows={rows
-                        .filter(
-                          (i) =>
-                            (filter === "ALL" || i.status === filter) &&
-                            `${i.workflowName} ${i.category} ${i.id}`
-                              .toLowerCase()
-                              .includes(search.toLowerCase()),
-                        )
-                        .slice(0, view === "overview" ? 8 : 200)}
+                      rows={rows}
                       select={setSelected}
+                      filtered={
+                        view === "incidents" &&
+                        ["q", "status", "category", "mode"].some((key) =>
+                          params.get(key),
+                        )
+                      }
                     />
+                  )}
+                  {view === "incidents" && list.data && !list.error && (
+                    <nav className="pagination" aria-label="Incident pages">
+                      <span role="status">
+                        {list.data.total
+                          ? `${(list.data.page - 1) * list.data.pageSize + 1}–${Math.min(list.data.page * list.data.pageSize, list.data.total)}`
+                          : "0"}{" "}
+                        of {list.data.total} incidents
+                      </span>
+                      <div>
+                        <Button
+                          variant="outline"
+                          disabled={list.data.page <= 1 || list.isFetching}
+                          onClick={() =>
+                            updateFilters({ page: String(list.data!.page - 1) })
+                          }
+                        >
+                          Previous
+                        </Button>
+                        <span>
+                          Page {list.data.page} of {list.data.totalPages}
+                        </span>
+                        <Button
+                          variant="outline"
+                          disabled={
+                            list.data.page >= list.data.totalPages ||
+                            list.isFetching
+                          }
+                          onClick={() =>
+                            updateFilters({ page: String(list.data!.page + 1) })
+                          }
+                        >
+                          Next
+                        </Button>
+                      </div>
+                    </nav>
                   )}
                 </section>
               )}
@@ -456,15 +613,21 @@ function Dashboard() {
 function IncidentTable({
   rows,
   select,
+  filtered = false,
 }: {
-  rows: Incident[];
+  rows: IncidentSummary[];
   select: (id: string) => void;
+  filtered?: boolean;
 }) {
   return !rows.length ? (
     <div className="empty">
       <Activity />
-      <h3>No incidents to show</h3>
-      <p>Launch a Demo Lab scenario or connect an n8n Error Workflow.</p>
+      <h3>{filtered ? "No matching incidents" : "No incidents to show"}</h3>
+      <p>
+        {filtered
+          ? "Try another search or clear the filters."
+          : "Launch a Demo Lab scenario or connect an n8n Error Workflow."}
+      </p>
     </div>
   ) : (
     <div className="table-scroll">

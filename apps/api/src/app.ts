@@ -18,7 +18,6 @@ import {
   runs,
   eq,
   and,
-  desc,
   audit,
   isNull,
   sql,
@@ -27,6 +26,7 @@ import { modelHealth, checkN8nConnection } from "@flowmedic/ai";
 import { config } from "../../../packages/shared/src/config.js";
 import { fixture } from "./fixtures.js";
 import { ingest, temporal } from "./ingest.js";
+import { listIncidents } from "./incident-list.js";
 export const hash = (s: string) => createHash("sha256").update(s).digest("hex");
 export function buildApp() {
   const app = Fastify({
@@ -117,9 +117,7 @@ export function buildApp() {
       scheduling: result.scheduling,
     });
   });
-  app.get("/api/v1/incidents", async () =>
-    db.select().from(incidents).orderBy(desc(incidents.createdAt)).limit(200),
-  );
+  app.get("/api/v1/incidents", async (req) => listIncidents(req.query));
   app.get("/api/v1/metrics", async () => {
     const [totals] = await db
       .select({
@@ -134,7 +132,15 @@ export function buildApp() {
         averageLatencyMs: sql<number | null>`avg(${runs.latencyMs})::int`,
       })
       .from(runs);
-    return { ...totals, ...latency };
+    const categories = await db
+      .select({
+        category: incidents.category,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(incidents)
+      .groupBy(incidents.category)
+      .orderBy(incidents.category);
+    return { ...totals, ...latency, categories };
   });
   app.get("/api/v1/incidents/:id", async (req, reply) => {
     const { id } = z.object({ id: z.uuid() }).parse(req.params);

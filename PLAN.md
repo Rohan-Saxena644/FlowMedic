@@ -12,6 +12,7 @@ Next milestones:
 - [x] Harden n8n evidence reads and add authenticated connection diagnostics with HTTP contract tests
 - [x] Add reproducible model behavior reports using the production generation function
 - [x] Evaluate Gemma 1B and the default 4B model on fixed evidence; record failed behavioral probes and review output limitations
+- [x] Add database-backed incident search, status/category/source filters, pagination and full-history category counts
 - [ ] Verify real Error Workflow ingestion and permitted context reads against an n8n instance
 - [ ] Add version- and permission-gated live recovery adapter; live retries remain disabled
 - [ ] Browser visual QA and screenshots when a browser session is available

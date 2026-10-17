@@ -10,6 +10,8 @@
 
 ## Useful commands
 
+Without n8n credentials, steps 1–6 still exercise the complete demo pipeline. In **Incidents**, use **Search** or Enter to search persisted history, combine status/category/source filters, and page through results. Open an incident, then return to verify that its inbox filters and page remain in the URL. **Clear filters** returns to the first unfiltered page. Demo and live events are explicitly separated by the source filter.
+
 ```sh
 pnpm seed
 pnpm test

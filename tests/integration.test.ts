@@ -271,15 +271,13 @@ describe.skipIf(process.env.RUN_INTEGRATION !== "1")(
         .update(store.incidents)
         .set({ status: "FAILED", mode: "demo" })
         .where(store.eq(store.incidents.id, id));
-      await store.db
-        .insert(store.proposals)
-        .values({
-          incidentId: id,
-          eligible: true,
-          decision: "approve",
-          delaySeconds: 0,
-          reason: "TEST ONLY: stale activity guard",
-        });
+      await store.db.insert(store.proposals).values({
+        incidentId: id,
+        eligible: true,
+        decision: "approve",
+        delaySeconds: 0,
+        reason: "TEST ONLY: stale activity guard",
+      });
       const { executeApprovedRecovery } =
         await import("../packages/workflows/src/activities");
       expect(await executeApprovedRecovery(id)).toBe(false);
@@ -307,6 +305,149 @@ describe.skipIf(process.env.RUN_INTEGRATION !== "1")(
           })
         )?.status,
       ).toBe("FAILED");
+    });
+    it("searches beyond 200 incidents with stable pages, combined filters and literal wildcard handling", async () => {
+      const marker = `inbox-test-${randomBytes(8).toString("hex")}`;
+      const [workflow] = await store.db
+        .insert(store.workflows)
+        .values({
+          integrationId,
+          sourceId: marker,
+          name: "TEST ONLY inbox pagination",
+        })
+        .returning();
+      const inserted = await store.db
+        .insert(store.incidents)
+        .values(
+          Array.from({ length: 205 }, (_, index) => ({
+            integrationId,
+            workflowId: workflow!.id,
+            sourceIdentity: `${marker}-${index}`,
+            workflowName:
+              index === 204 ? `${marker}%_done\\test` : `${marker} ${index}`,
+            failedNode: `${marker}-node-only`,
+            message: `${marker}-error-only: TEST ONLY persisted list fixture; no inference or recovery.`,
+            status: index % 2 ? "FAILED" : "RECOVERED",
+            category: index % 2 ? "NETWORK_TIMEOUT" : "RATE_LIMIT",
+            mode: index % 2 ? "live" : "demo",
+            evidence: { privateContext: "list-must-not-include-this-evidence" },
+            scheduled: true,
+            createdAt: new Date("2020-01-01T00:00:00.000Z"),
+          })),
+        )
+        .returning({ id: store.incidents.id });
+      const get = (query: Record<string, string>) =>
+        app.inject({
+          url: `/api/v1/incidents?${new URLSearchParams({ q: marker, ...query })}`,
+          headers: { authorization: `Bearer ${config.OPERATOR_TOKEN}` },
+        });
+      try {
+        const pages = [];
+        for (const page of [1, 2, 3]) {
+          const result = await get({ page: String(page), pageSize: "100" });
+          expect(result.statusCode).toBe(200);
+          expect(result.json()).toMatchObject({
+            total: 205,
+            page,
+            totalPages: 3,
+            pageSize: 100,
+          });
+          expect(result.body).not.toContain(
+            "list-must-not-include-this-evidence",
+          );
+          expect(result.json().items[0]).not.toHaveProperty("evidence");
+          expect(result.json().items[0]).not.toHaveProperty("diagnosis");
+          pages.push(
+            ...result.json().items.map((item: { id: string }) => item.id),
+          );
+        }
+        expect(pages).toEqual(
+          inserted
+            .map(({ id }) => id)
+            .sort()
+            .reverse(),
+        );
+        expect(new Set(pages).size).toBe(205);
+        for (const q of [
+          marker.toUpperCase(),
+          `${marker}-node-only`,
+          `${marker}-error-only`,
+        ]) {
+          expect((await get({ q })).json().total).toBe(205);
+        }
+        expect(
+          (await get({ q: inserted[0]!.id }))
+            .json()
+            .items.map((item: { id: string }) => item.id),
+        ).toEqual([inserted[0]!.id]);
+        const combined = await get({
+          status: "FAILED",
+          category: "NETWORK_TIMEOUT",
+          mode: "live",
+        });
+        expect(combined.json().total).toBe(102);
+        expect(
+          combined
+            .json()
+            .items.every(
+              (item: { status: string; category: string; mode: string }) =>
+                item.status === "FAILED" &&
+                item.category === "NETWORK_TIMEOUT" &&
+                item.mode === "live",
+            ),
+        ).toBe(true);
+        expect(
+          (await get({ status: "FAILED", mode: "demo" })).json().total,
+        ).toBe(0);
+        expect((await get({ q: `${marker}%` })).json().total).toBe(1);
+        expect((await get({ q: `${marker}_` })).json().total).toBe(0);
+        expect((await get({ q: `${marker}%_done\\test` })).json().total).toBe(
+          1,
+        );
+        const lastPage = (await get({ page: "999", pageSize: "100" })).json();
+        expect(lastPage).toMatchObject({ page: 3, totalPages: 3 });
+        expect(lastPage.items).toHaveLength(5);
+        expect((await get({ q: `${marker}' OR 1=1 --` })).json().total).toBe(0);
+        const metrics = await app.inject({
+          url: "/api/v1/metrics",
+          headers: { authorization: `Bearer ${config.OPERATOR_TOKEN}` },
+        });
+        expect(
+          metrics
+            .json()
+            .categories.find(
+              (row: { category: string }) => row.category === "RATE_LIMIT",
+            ).count,
+        ).toBeGreaterThanOrEqual(103);
+      } finally {
+        await store.db
+          .delete(store.incidents)
+          .where(store.eq(store.incidents.workflowId, workflow!.id));
+        await store.db
+          .delete(store.workflows)
+          .where(store.eq(store.workflows.id, workflow!.id));
+      }
+    });
+    it("rejects invalid incident filters and unbounded pagination", async () => {
+      for (const query of [
+        "page=0",
+        "page=1.5",
+        "page=100001",
+        "pageSize=101",
+        "pageSize=-1",
+        "status=NOT_A_STATUS",
+        "mode=other",
+        "category=other",
+        "unknown=value",
+        `q=${"x".repeat(201)}`,
+        "status=FAILED&status=RECOVERED",
+      ]) {
+        const result = await app.inject({
+          url: `/api/v1/incidents?${query}`,
+          headers: { authorization: `Bearer ${config.OPERATOR_TOKEN}` },
+        });
+        expect(result.statusCode, query).toBe(400);
+      }
     });
     it("never leaks integration hashes or secrets on list routes", async () => {
       const result = await app.inject({

@@ -46,3 +46,11 @@ The isolated durability test uses activity doubles and does not count as inferen
 - The local app was restored to the requested `gemma3:4b` default and passed `pnpm demo:verify`: rate-limit incident `4101e1de-b2f3-4ede-826b-f32e8a498983` recovered in the simulated adapter (59,651 ms model latency); schema-mismatch incident `75693d26-55c8-4821-a00b-522955e7fdcb` blocked retry and was rejected (47,651 ms); ambiguous-timeout incident `a7d850c8-8586-41c4-aba8-c824c63b6524` blocked retry and was rejected (54,224 ms). Health returned HTTP 200 with the 4B model available.
 - A concurrency regression test submitted eight different test-only diagnoses simultaneously and verified one winning diagnosis, matching model/latency metadata, and one diagnosis audit event. Another test verified that a late recovery activity cannot create a successful attempt or success audit for a failed incident. These database tests do not invoke a model or a live recovery.
 - After reloading the worker with atomic persistence, a real Gemma 4B smoke test passed for incident `a9a8f853-7d15-4bb6-8eb0-7ec1a1490e71`: 56,725 ms model latency, approved simulated recovery reached RECOVERED, and exactly one diagnosis audit and one recovery audit were recorded.
+
+## Incident inbox follow-up
+
+- 53 tests passed with integration checks enabled. The two added database tests cover 205 disposable persisted incidents, three non-overlapping pages with equal timestamps, combined filters, literal wildcard/backslash search, out-of-range page clamping, and invalid query rejection.
+- The final nine-test integration rerun also verified case-insensitive workflow search, failed-node/error-message search and incident-ID lookup. Test fixtures are explicitly labelled, create no model calls or recovery attempts, and are removed after verification.
+- List responses omit evidence and diagnosis payloads. Category metrics include all persisted incidents, independently of the currently selected inbox page.
+- Workspace typechecks and the final Next.js production build passed. The local web proxy passed pagination, source-filter and empty-search checks; the filtered dashboard URL returned HTTP 200.
+- Browser rendering and navigation interactions remain unverified because this session exposes no browser surface.

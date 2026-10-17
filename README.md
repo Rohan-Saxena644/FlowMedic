@@ -58,6 +58,10 @@ TypeScript pnpm workspace; Next.js App Router, React, Tailwind, shadcn-style But
 
 ## Demo and n8n
 
+The incident inbox searches the full persisted history by workflow, failed node, error message or incident ID. Combine status, category and demo/live source filters; search with Enter or **Search**. Pages contain 25 summary rows. Filters and page are retained in the URL when opening an incident and returning to the inbox. The overview's category chart counts all stored incidents.
+
+`GET /api/v1/incidents` returns `{ items, total, page, pageSize, totalPages }`. Optional query parameters are `q` (up to 200 characters), `status`, `category`, `mode` (`demo` or `live`), `page` and `pageSize` (1–100, default 25). Search treats `%`, `_` and backslashes literally. Evidence and diagnosis remain on the incident detail endpoint. Pages sort newest first with an ID tie-breaker; new events can shift later pages between refreshes.
+
 - **Rate limit:** idempotent simulated GET fails with 429 and Retry-After. A human can approve a demo retry after bounded backoff.
 - **Schema mismatch:** expected `email`, received `email_address`. Mapping must be corrected and validated by the operator.
 - **Ambiguous timeout:** order body was sent; remote outcome unknown. Blind replay stays blocked.
@@ -92,6 +96,6 @@ Capture the local dashboard and incident investigation after running the demo. S
 
 ## Roadmap
 
-Verified n8n evidence adapter and version-gated retry capabilities; operator sessions before deployment; finer redaction controls; filtering/pagination; agency feedback on the proposed $29/month price. See [architecture](docs/architecture.md), [demo](docs/demo.md), [business](docs/business.md), and [submission notes](docs/hacktoberfest.md).
+Verified n8n evidence adapter and version-gated retry capabilities; operator sessions before deployment; finer redaction controls; agency feedback on the proposed $29/month price. See [architecture](docs/architecture.md), [demo](docs/demo.md), [business](docs/business.md), and [submission notes](docs/hacktoberfest.md).
 
 MIT license for FlowMedic source. Model weights and dependencies retain their own licenses.
