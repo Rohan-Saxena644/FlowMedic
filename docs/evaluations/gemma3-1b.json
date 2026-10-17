@@ -1,0 +1,79 @@
+{
+  "model": "gemma3:1b",
+  "evaluatedAt": "2026-10-16T22:24:52.640Z",
+  "scope": "Direct model evaluation over fixed redacted fixtures. Not a database/Temporal pipeline test or a calibrated accuracy benchmark. Automated checks are limited behavioral probes; human factual review is required.",
+  "results": [
+    {
+      "scenario": "rate-limit",
+      "evidenceHash": "5f7df8d36e6c97e1b5368b2d6158155fe6d7c8148541abfbcce7b93c9e2f3f71",
+      "diagnosis": {
+        "category": "RATE_LIMIT",
+        "rootCause": "The CRM quota exceeded, triggering a rate limit imposed by the CRM system. The `Retry-After` header indicates a 5-second delay, suggesting a potential issue with the request processing.",
+        "explanation": "The evidence shows a `HTTP 429 Too Many Requests` response, directly linked to the rate limit imposed by the CRM system. The `Retry-After` header confirms this rate limit is in effect.",
+        "evidenceRefs": ["execution"],
+        "recommendedFix": "Implement a retry mechanism with a backoff period of 5 seconds, ensuring the request is processed within the allowed rate limit.",
+        "retryRecommendation": "AFTER_BACKOFF",
+        "retryRisk": "HIGH",
+        "missingInformation": [],
+        "confidence": 0.9
+      },
+      "latencyMs": 31183,
+      "checks": {
+        "category": true,
+        "backoffRecommendation": true,
+        "actionMentionsWait": true,
+        "observedDelayMentioned": true
+      },
+      "allChecksPassed": true
+    },
+    {
+      "scenario": "schema-mismatch",
+      "evidenceHash": "0fd15319bb300c14050f996827d1f75632831c28be18370f0471e454a9df147d",
+      "diagnosis": {
+        "category": "PAYLOAD_SCHEMA_MISMATCH",
+        "rootCause": "The received email_address field in the payload schema mismatch with the expected format. The expected field is 'email', while the received field is 'email_address'.",
+        "explanation": "The data indicates a critical mismatch between the expected and received data, triggering a schema validation failure. This discrepancy directly impacts the integrity of the CRM lead data flow.",
+        "evidenceRefs": ["execution"],
+        "recommendedFix": "Correct the email_address field in the payload to match the expected format. Verify the corrected data against the schema.",
+        "retryRecommendation": "AFTER_CORRECTION",
+        "retryRisk": "HIGH",
+        "missingInformation": ["email_address"],
+        "confidence": 0.9
+      },
+      "latencyMs": 11407,
+      "checks": {
+        "category": true,
+        "fixIdentifiesExpectedField": false,
+        "fixIdentifiesReceivedField": true,
+        "requiresCorrection": true
+      },
+      "allChecksPassed": false
+    },
+    {
+      "scenario": "ambiguous-timeout",
+      "evidenceHash": "91e2fc9e9696a281754ca60397c48daa0df30f3609034df7a78fb7ff79fd53b8",
+      "diagnosis": {
+        "category": "NETWORK_TIMEOUT",
+        "rootCause": "The request body was sent after the order creation request was initiated. The remote outcome is unknown, indicating a network timeout preventing successful order creation.",
+        "explanation": "The execution data clearly states that the request timed out after the request body was sent. This suggests a network issue or a delay in the server processing the request.",
+        "evidenceRefs": ["execution"],
+        "recommendedFix": "Attempt to re-establish the connection and retry the request after a short delay.",
+        "retryRecommendation": "MANUAL_VERIFICATION",
+        "retryRisk": "HIGH",
+        "missingInformation": [
+          "UNKNOWN Remote Outcome - Order creation failed to complete within the expected timeframe."
+        ],
+        "confidence": 0.95
+      },
+      "latencyMs": 12595,
+      "checks": {
+        "category": true,
+        "noBlindRetry": true,
+        "uncertainRisk": true,
+        "missingInformation": true,
+        "duplicateOrRemoteOutcomeWarning": true
+      },
+      "allChecksPassed": true
+    }
+  ]
+}

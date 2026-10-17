@@ -25,3 +25,9 @@ The web proxy is for a trusted localhost operator, not public authentication. In
 ## Deliberate tradeoffs
 
 Stored Error Trigger evidence is available in both demo and live ingestion. Optional richer live execution context uses a fixed environment-configured n8n endpoint and integration ID. Its API key stays server-side, redirects are refused, and responses are redacted. Live retries are unavailable until version/permission checks and remote outcome accounting are implemented. A rules-only baseline classifies an error but cannot compare missing fields, explain uncertain side effects or synthesize related evidence; the model provides those explanations without gaining control over recovery.
+
+The n8n client validates source IDs and response identities, bounds response bytes while reading the body, and preserves readable execution evidence when a workflow read fails (and vice versa). Connection diagnostics require operator authentication, accept no request-supplied endpoint, and test only workflow-list access. The UI displays the check's actual timestamp; it does not infer live retry capability.
+
+`packages/ai/src/generate.ts` contains the shared Mastra generation path. The investigation activity supplies persisted tool snapshots and an audit callback; the evaluation CLI supplies fixed fixture snapshots without database writes or recovery. Reports separate automated behavioral probes from the human assessment needed for factual accuracy.
+
+Diagnosis persistence uses a conditional write while the incident is still INVESTIGATING and its diagnosis is absent. The winning diagnosis, model/latency row and completion audit commit together. Overlapping activity completions cannot replace the winner or mix metadata from different results. Simulated recovery similarly claims RECOVERY_RUNNING and commits its status, attempt and audit together; a late completion cannot add a success record to a failed or already-final incident.

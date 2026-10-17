@@ -9,7 +9,9 @@
 
 Next milestones:
 
-- [ ] Evaluate diagnosis accuracy with the default Gemma 4B model; the 1B smoke-test model produces uneven explanations
+- [x] Harden n8n evidence reads and add authenticated connection diagnostics with HTTP contract tests
+- [x] Add reproducible model behavior reports using the production generation function
+- [x] Evaluate Gemma 1B and the default 4B model on fixed evidence; record failed behavioral probes and review output limitations
 - [ ] Verify real Error Workflow ingestion and permitted context reads against an n8n instance
 - [ ] Add version- and permission-gated live recovery adapter; live retries remain disabled
 - [ ] Browser visual QA and screenshots when a browser session is available
