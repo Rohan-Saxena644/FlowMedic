@@ -28,7 +28,7 @@ These are individual local observations, not benchmarks or accuracy measurements
 
 ## Observed limitations
 
-Earlier 1B runs copied JSON-schema metadata or omitted execution citations. Native schema output and constrained references fixed those formatting failures; rejected attempts and earlier failed incidents remain visible. The small model still produces uneven explanations, including incorrect causal language and confusing field-name mismatches with data-format problems. Schema validation does not establish factual accuracy. The default Gemma 4B model has not been evaluated; no accuracy claims are made for it. Review model hypotheses against the raw evidence and deterministic recovery policy.
+Earlier 1B runs copied JSON-schema metadata or omitted execution citations. Native schema output and constrained references fixed those formatting failures; rejected attempts and earlier failed incidents remain visible. The small model still produces uneven explanations, including incorrect causal language and confusing field-name mismatches with data-format problems. Schema validation does not establish factual accuracy. The later 4B evaluation is recorded below; neither model's small fixture evaluation establishes general accuracy. Review model hypotheses against the raw evidence and deterministic recovery policy.
 
 Not yet verified: actual n8n instance connection, live n8n retry (deliberately disabled), browser rendering/screenshots (no browser surface available in this tool session).
 
