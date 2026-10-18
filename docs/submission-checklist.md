@@ -22,7 +22,7 @@ Writing has the largest judging weight. Use [the prepared draft](dev-submission.
 - [ ] Upload the recording somewhere judges can open without requesting access. Test its link while signed out.
 - [ ] Capture real incident-detail screenshots if time permits; screenshots are supplementary to the demo.
 - [ ] Confirm the latest commits are pushed and the repository can be read by judges. At the initial check, remote `main` was `ba40175`; local inbox commit `fbcaa66` had not been pushed.
-- [ ] After any real n8n check, update only the claims it proves. If setup remains incomplete, retain the draft's limitation paragraph.
+- [x] Update the draft after the real n8n 2.43.7 check: transport, context reads, actual inference and retry blocking passed; retain the model-quality and browser-verification limitations.
 - [ ] Publish the DEV post, open its public URL while signed out, and confirm both tags and working demo/code links.
 
 ## Suggested recording sequence

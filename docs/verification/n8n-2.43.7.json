@@ -1,0 +1,37 @@
+{
+  "result": "PASS",
+  "checkedAt": "2026-10-18T17:53:47.664Z",
+  "n8nVersion": "2.43.7",
+  "integrationId": "11472411-8323-4c50-a113-d860c23c13be",
+  "reporterWorkflowId": "d7Oh8VBG4lNLfjrV",
+  "sourceWorkflowId": "NiEBTO8LI2u25bO1",
+  "sourceExecutionId": "3",
+  "incidentId": "02fd3190-06f8-4389-ba3f-da854a7f5001",
+  "model": "gemma3:4b",
+  "latencyMs": 95491,
+  "incidentStatus": "AWAITING_APPROVAL",
+  "checks": {
+    "productionWebhookTriggered": true,
+    "intentionalStopAndErrorObserved": true,
+    "errorReporterCompletedSuccessfully": true,
+    "liveIncidentPersisted": true,
+    "executionEvidenceReadable": true,
+    "workflowEvidenceReadable": true,
+    "fiveEvidenceSnapshotsPersisted": true,
+    "actualModelDiagnosisValidated": true,
+    "liveRetryEligible": false,
+    "liveApprovalHttpStatus": 409,
+    "liveRecoveryExecuted": false
+  },
+  "setupFindings": [
+    "Windows reserved host port 5678; n8n ran on 127.0.0.1:15678 mapped to container port 5678.",
+    "Windows Docker Desktop host.docker.internal reached the loopback-only FlowMedic API.",
+    "n8n 2.43.7 required the error reporter to be published; its log refused an inactive reporter.",
+    "The newly published production webhook briefly returned 404 before registration completed."
+  ],
+  "qualityNotes": [
+    "The model recognized the intentional Stop And Error node but also suggested an unsupported webhook/upstream problem and webhook-log investigation.",
+    "Passing this check establishes real transport, evidence reads, inference, persistence and retry blocking, not diagnosis accuracy or successful live recovery."
+  ],
+  "scope": "Isolated local n8n production-triggered deliberate failure. No customer workflow was modified. Both example workflows remain available for recording; credentials are excluded from this report."
+}

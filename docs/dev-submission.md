@@ -56,6 +56,8 @@ One difficult engineering problem was overlapping activity completion. A late re
 
 The verification log records **53 passing automated tests**, workspace typechecks, a production build, real model-backed scenario runs, and a worker restart during an approval wait. After restart, the investigation continued with its existing diagnosis and completed one simulated recovery.
 
+A separate live test on **n8n 2.43.7** triggered the example production webhook, deliberately failed at Stop And Error, and delivered a real Error Workflow event to FlowMedic. Permitted execution/workflow reads succeeded, Gemma 4B generated a validated diagnosis in 95.5 seconds, and live retry approval was blocked with HTTP 409. No live recovery ran. Testing the actual version also exposed a setup issue: its error reporter needed publication despite the general documentation saying otherwise.
+
 I also evaluated Gemma 1B and 4B against the same three fixed evidence inputs. Both passed every automated behavioral probe in two of the three scenarios. The failures differed: 1B's schema-mismatch fix omitted the expected field name; 4B named both fields but failed the retry-recommendation probe. Those failures remain in the checked-in reports.
 
 That exercise exposed an important limitation: a valid schema does not guarantee a factual explanation. Human review also found unsupported configuration wording in a 4B response. I treat the diagnosis as a hypothesis to inspect, with recovery policy enforced independently.
@@ -74,9 +76,9 @@ Local inference avoids a required per-request commercial model bill; it does not
 
 This is a trusted local, single-operator MVP. It has no public login system, billing, or multi-tenancy. Common-secret redaction is not comprehensive PII detection.
 
-The n8n adapter and Error Workflow examples are implemented, but actual instance ingestion and permitted evidence reads remain unverified at the time of this draft. Its HTTP contract tests use labelled test servers. Live n8n recovery is disabled, and browser visual QA remains pending.
+The n8n adapter and Error Workflow examples have been verified against the isolated local 2.43.7 instance. That deliberate-failure check validates transport and inference, not accuracy: the model recognized the intentional error but also suggested an unsupported webhook problem. Live n8n recovery is disabled, and browser visual QA remains pending. The [live test report](https://github.com/Rohan-Saxena644/FlowMedic/blob/main/docs/verification/n8n-2.43.7.json) retains those findings.
 
-<!-- Update the preceding paragraph only after actual n8n/browser verification; retain any remaining limitations. -->
+<!-- Update browser verification claims only after inspecting the actual rendered UI. -->
 
 AI coding assistance was used during implementation. The code, tests, model outputs, and verification records are available for review.
 

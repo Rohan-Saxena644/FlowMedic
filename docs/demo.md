@@ -6,7 +6,7 @@
 4. Trigger **A field lost in translation**. Compare expected `email` with received `email_address`. The agent should recommend mapping correction. Retry remains unavailable. No configuration change is claimed. Choose manual resolution or rejection.
 5. Trigger **Did that order go through?**. Show body-sent evidence and missing idempotency key. Discuss the unknown remote outcome. Blind retry remains unavailable even if model output would recommend it.
 6. To prove durability, leave a fresh incident awaiting approval, stop only the worker process (not Temporal), approve while it is offline, then restart `pnpm --filter @flowmedic/workflows dev`. The same workflow ID/history continues; database and Temporal volumes preserve state. Compare the investigation run ID before and after to confirm inference was not repeated. This sequence passed locally; see `docs/verification.md` for the recorded incident and run IDs.
-7. Create a live integration and copy its secret once. Import `examples/n8n/error-reporter.json`, configure HTTP Header Auth, attach it as another workflow's Error Workflow, and cause a production-triggered failure. Confirm a live incident arrives. Live retries stay manual.
+7. Create a live integration and copy its secret once. Import `examples/n8n/error-reporter.json`, configure HTTP Header Auth, publish it, attach it as another workflow's Error Workflow, publish the source, and cause a production-triggered failure. Confirm a live incident arrives. Live retries stay manual. Both workflows needed publication on the tested n8n 2.43.7 instance.
 
 ## Useful commands
 
