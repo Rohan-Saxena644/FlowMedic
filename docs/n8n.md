@@ -2,6 +2,21 @@
 
 FlowMedic accepts Error Trigger deliveries independently from optional n8n Public API context reads. These use different credentials: an integration bearer secret secures incoming events; the n8n API key grants the server permission to read evidence.
 
+## Local Docker setup and Windows port reservations
+
+Windows can reserve port 5678 even when no process is listening. Check `netsh interface ipv4 show excludedportrange protocol=tcp` after Docker reports a forbidden socket bind. Use an available host port while leaving n8n's internal port at 5678:
+
+```powershell
+docker volume create flowmedic_n8n
+docker run -d --name flowmedic-n8n -p 127.0.0.1:15678:5678 -e GENERIC_TIMEZONE=Asia/Kolkata -e TZ=Asia/Kolkata -e N8N_EDITOR_BASE_URL=http://localhost:15678 -e N8N_WEBHOOK_URL=http://localhost:15678/ -v flowmedic_n8n:/home/node/.n8n n8nio/n8n:2.43.7
+```
+
+This command assumes the container name is unused. If an earlier failed run left a container in **Created** state, confirm its mounted data volume before removing that never-started container and reusing the same volume. Do not delete the volume. For a previously working instance, preserve its existing configuration instead of replacing it with this fresh setup.
+
+Open `http://localhost:15678`, complete the owner account setup, and create an API key as described below. Set FlowMedic's `N8N_BASE_URL=http://localhost:15678`. Production webhook URLs should also use host port 15678; copy the URL displayed by n8n. See n8n's [editor URL setting](https://docs.n8n.io/hosting/configuration/environment-variables/deployment/) and [webhook URL configuration](https://docs.n8n.io/hosting/configuration/configuration-examples/webhook-url/).
+
+On October 18 this environment reserved 5603–5702. The container was successfully started on 15678 using the preserved `flowmedic_n8n` volume; n8n reported version 2.43.7, health passed and the editor returned HTTP 200. Account setup, API authentication and Error Workflow delivery were still pending at that point. Startup alone does not verify the integration.
+
 ## Send a real Error Workflow event
 
 1. Run n8n locally or use an instance that can reach FlowMedic's ingestion endpoint. FlowMedic defaults to `127.0.0.1:4000`; a separate Docker container may need an explicit reachable host address. Do not expose the trusted single-operator web app publicly to solve connectivity.
