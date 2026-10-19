@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "dotenv -e ../../.env -- tsx watch src/index.ts",
+    "start": "dotenv -e ../../.env -- tsx src/index.ts",
     "seed": "dotenv -e ../../.env -- tsx src/seed.ts",
     "typecheck": "tsc --noEmit"
   },

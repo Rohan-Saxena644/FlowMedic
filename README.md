@@ -23,6 +23,8 @@ To avoid the large official GPU-enabled Ollama image, use `pnpm infra:cpu` inste
 
 `pnpm demo:verify` exercises all three scenarios using real inference. `pnpm test:durability` checks Temporal worker shutdown and restart with explicit activity test doubles, independent from inference. `pnpm setup` creates `.env` with a random operator token if missing and preserves existing configuration.
 
+For a recording, stop `pnpm dev`, run `pnpm build`, then `pnpm start`. The start command runs the built Next.js frontend on localhost:3000, the API on localhost:4000 without a file watcher, and the Temporal worker. It loads the existing `.env` and uses the same persisted data. This avoids development compiler/overlay reloads during the demo; rebuild after frontend edits. The app remains a trusted localhost MVP in this mode, not a public deployment.
+
 `pnpm seed` submits all three scenarios through the running authenticated API. It does not fabricate diagnoses or metrics. `pnpm test`, `pnpm typecheck`, and `pnpm build` verify the source. Integration tests are opt-in: `pnpm exec dotenv -e .env -- vitest run tests/integration.test.ts` with `RUN_INTEGRATION=1` and a migrated database; see [demo instructions](docs/demo.md).
 
 ## Configuration

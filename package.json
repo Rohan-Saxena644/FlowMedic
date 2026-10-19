@@ -16,6 +16,7 @@
     "ai:evaluate": "dotenv -e .env -- tsx packages/ai/src/evaluate.ts",
     "n8n:check": "dotenv -e .env -- tsx packages/ai/src/check-n8n.ts",
     "dev": "concurrently -n api,web,worker \"pnpm --filter @flowmedic/api dev\" \"pnpm --filter @flowmedic/web dev\" \"pnpm --filter @flowmedic/workflows dev\"",
+    "start": "concurrently -n api,web,worker \"pnpm --filter @flowmedic/api start\" \"pnpm --filter @flowmedic/web start\" \"pnpm --filter @flowmedic/workflows start\"",
     "typecheck": "pnpm -r typecheck",
     "test": "vitest run",
     "build": "pnpm --filter @flowmedic/web build",

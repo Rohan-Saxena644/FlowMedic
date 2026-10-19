@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "dotenv -e ../../.env -- tsx src/worker.ts",
+    "start": "dotenv -e ../../.env -- tsx src/worker.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

@@ -1,5 +1,16 @@
 # Repeatable demo
 
+For recording, use the built frontend instead of the development compiler. Stop any existing `pnpm dev` session first, then run from the repository root:
+
+```powershell
+pnpm.cmd build
+pnpm.cmd start
+```
+
+Wait for the build to finish before starting. Keep Docker running. `start` loads `.env`, runs Next.js production mode on loopback port 3000, starts the API without file watching on 4000, and starts the Temporal worker. The development Next.js icon is absent; incident polling and real model investigations still work. This mode is local-only. Rebuild after changing frontend code.
+
+The development server was observed repeatedly compiling and reloading even the static landing page. Logs showed repeated document requests and browser React initialization. That behavior is separate from dashboard data polling. Production mode removes the development compiler/HMR path; the exact development-server trigger has not been isolated.
+
 1. Follow README setup. Confirm `/api/v1/health` reports database, Temporal and model available. Ollama must have the exact `MODEL_ID` installed.
 2. Open the workspace and Demo Lab. Trigger **CRM hits the limit**. The returned incident opens automatically. Show the real received/context/classification/tool/diagnosis stages and the model latency.
 3. Explain the hypothesis and evidence. Approve **demo retry**. The Temporal workflow waits the bounded backoff, then records a simulated result and audit event. The dashboard recovered count is computed from persisted records.
